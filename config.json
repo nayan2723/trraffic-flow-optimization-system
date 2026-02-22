@@ -1,0 +1,28 @@
+{
+  "traffic": {
+    "arrival_rates": {
+      "north": 8,
+      "south": 10,
+      "east": 6,
+      "west": 7
+    },
+    "service_rate": 1.2,
+    "simulation_time": 600
+  },
+  "signal_constraints": {
+    "min_green": 10,
+    "max_cycle": 120
+  },
+  "environment": {
+    "fuel_rate_idle": 0.0002,
+    "emission_idle": 0.002,
+    "emission_stop": 0.005
+  },
+  "optimization": {
+    "population_size": 80,
+    "generations": 60,
+    "mutation_prob": 0.1,
+    "crossover_prob": 0.8,
+    "seed": 42
+  }
+}
