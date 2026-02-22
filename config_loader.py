@@ -20,6 +20,8 @@ Public API
 import json
 import os
 import sys
+import random
+from ui import print_header, print_error, print_info, ask_user, print_sub_header
 
 # ---------------------------------------------------------------------------
 # Schema with types, bounds, and human-readable labels
@@ -183,41 +185,33 @@ def get_valid_input(prompt, type_cast, min_val=None, max_val=None, custom_valida
     Prompt the user for a single value with strict validation.
     Empty inputs are rejected and the user is asked to enter a value.
     """
-    default_str = str(default) if default is not None else ""
-    full_prompt = f"  {prompt} [{default_str}]: " if default is not None else f"  {prompt}: "
+    default_str = f" [{default}]" if default is not None else ""
+    full_prompt = f"  {prompt}{default_str}: "
     
     while True:
-        try:
-            raw = input(full_prompt).strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            sys.exit(0)
-
-        if raw.lower() == 'q':
-            print("\n  [!] Exiting interactive configuration.")
-            sys.exit(0)
+        raw = ask_user(full_prompt)
 
         if raw == "":
-            print("    [!] Please enter a value.")
+            print_error("Please enter a value.")
             continue
 
         try:
             value = type_cast(raw)
         except ValueError:
-            print("    [!] Invalid type. Please enter a valid number.")
+            print_error("Invalid type. Please enter a valid number.")
             continue
 
         if min_val is not None and value < min_val:
-            print(f"    [!] Value must be >= {min_val}")
+            print_error(f"Value must be >= {min_val}")
             continue
 
         if max_val is not None and value > max_val:
-            print(f"    [!] Value must be <= {max_val}")
+            print_error(f"Value must be <= {max_val}")
             continue
 
         if custom_validator is not None:
             if not custom_validator(value):
-                print(f"    [!] {custom_error}")
+                print_error(f"{custom_error}")
                 continue
 
         return value
@@ -229,39 +223,93 @@ def interactive_config(defaults=None):
     Validates per field and won't proceed until a valid number is entered.
     """
     import copy
-    cfg = copy.deepcopy(defaults or _DEFAULTS)
+    while True:
+        cfg = copy.deepcopy(defaults or _DEFAULTS)
 
-    print("\n" + "=" * 58)
-    print("  Interactive Configuration — type 'q' to quit at any time")
-    print("=" * 58)
+        print_info("\n" + "=" * 58)
+        print_info("  Interactive Configuration \u2014 type 'q' to quit at any time")
+        print_info("=" * 58)
 
-    print("\n  [Traffic Parameters]")
-    cfg["traffic"]["arrival_rates"]["north"] = get_valid_input("Arrival rate – North (veh/min)", float, min_val=0.0, max_val=100.0, default=cfg["traffic"]["arrival_rates"]["north"])
-    cfg["traffic"]["arrival_rates"]["south"] = get_valid_input("Arrival rate – South (veh/min)", float, min_val=0.0, max_val=100.0, default=cfg["traffic"]["arrival_rates"]["south"])
-    cfg["traffic"]["arrival_rates"]["east"]  = get_valid_input("Arrival rate – East (veh/min)",  float, min_val=0.0, max_val=100.0, default=cfg["traffic"]["arrival_rates"]["east"])
-    cfg["traffic"]["arrival_rates"]["west"]  = get_valid_input("Arrival rate – West (veh/min)",  float, min_val=0.0, max_val=100.0, default=cfg["traffic"]["arrival_rates"]["west"])
-    cfg["traffic"]["service_rate"] = get_valid_input("Service rate (veh/sec during green)", float, min_val=0.1, max_val=5.0, default=cfg["traffic"]["service_rate"])
-    cfg["traffic"]["simulation_time"] = get_valid_input("Simulation duration (seconds)", int, min_val=60, max_val=3600, default=cfg["traffic"]["simulation_time"])
+        print_sub_header("\nSelect Traffic Scenario:")
+        print_info("  1 \u2192 Low Density (3-5 veh/min)")
+        print_info("  2 \u2192 Medium Density (8-12 veh/min)")
+        print_info("  3 \u2192 High Density (18-25 veh/min)")
+        print_info("  4 \u2192 Custom Input")
+        
+        while True:
+            choice = ask_user("\n  Enter choice (1-4): ")
+            if choice in ['1', '2', '3', '4']:
+                break
+            print_error("Invalid choice. Enter 1, 2, 3, or 4.")
+        
+        scenario_name = "custom"
+        if choice == '1':
+            for k in ["north", "south", "east", "west"]:
+                cfg["traffic"]["arrival_rates"][k] = round(random.uniform(3.0, 5.0), 1)
+            scenario_name = "low"
+        elif choice == '2':
+            for k in ["north", "south", "east", "west"]:
+                cfg["traffic"]["arrival_rates"][k] = round(random.uniform(8.0, 12.0), 1)
+            scenario_name = "medium"
+        elif choice == '3':
+            for k in ["north", "south", "east", "west"]:
+                cfg["traffic"]["arrival_rates"][k] = round(random.uniform(18.0, 25.0), 1)
+            scenario_name = "high"
 
-    print("\n  [Signal Constraints]")
-    mg = get_valid_input("Min green time per phase (seconds)", int, min_val=5, max_val=60, default=int(cfg["signal_constraints"]["min_green"]))
-    cfg["signal_constraints"]["min_green"] = mg
-    cfg["signal_constraints"]["max_cycle"] = get_valid_input("Max total cycle time (seconds)", int, min_val=40, max_val=300, custom_validator=lambda x: x >= 4 * mg, custom_error="max_cycle must be at least 4 × min_green", default=int(cfg["signal_constraints"]["max_cycle"]))
+        cfg["scenario_name"] = scenario_name
 
-    print("\n  [Fuel & Emission Parameters]")
-    cfg["environment"]["fuel_rate_idle"] = get_valid_input("Fuel rate per idle veh-sec", float, min_val=1e-6, max_val=1.0, default=cfg["environment"]["fuel_rate_idle"])
-    cfg["environment"]["emission_idle"]  = get_valid_input("Emission coeff – idle (per veh-sec)", float, min_val=1e-6, max_val=1.0, default=cfg["environment"]["emission_idle"])
-    cfg["environment"]["emission_stop"]  = get_valid_input("Emission coeff – stop event", float, min_val=1e-6, max_val=10.0, default=cfg["environment"]["emission_stop"])
+        print_header("TRAFFIC PARAMETERS")
+        if choice == '4':
+            cfg["traffic"]["arrival_rates"]["north"] = get_valid_input("Arrival rate \u2013 North (veh/min)", float, min_val=0.0, max_val=100.0, default=cfg["traffic"]["arrival_rates"]["north"])
+            cfg["traffic"]["arrival_rates"]["south"] = get_valid_input("Arrival rate \u2013 South (veh/min)", float, min_val=0.0, max_val=100.0, default=cfg["traffic"]["arrival_rates"]["south"])
+            cfg["traffic"]["arrival_rates"]["east"]  = get_valid_input("Arrival rate \u2013 East (veh/min)",  float, min_val=0.0, max_val=100.0, default=cfg["traffic"]["arrival_rates"]["east"])
+            cfg["traffic"]["arrival_rates"]["west"]  = get_valid_input("Arrival rate \u2013 West (veh/min)",  float, min_val=0.0, max_val=100.0, default=cfg["traffic"]["arrival_rates"]["west"])
+        else:
+            print_info(f"  Using '{scenario_name}' density preset for arrival rates:")
+            for k, v in cfg["traffic"]["arrival_rates"].items():
+                print_info(f"    {k.capitalize():<5}: {v} veh/min")
 
-    print("\n  [Optimization Parameters]")
-    cfg["optimization"]["population_size"] = get_valid_input("Population size", int, min_val=20, max_val=500, default=cfg["optimization"]["population_size"])
-    cfg["optimization"]["generations"]     = get_valid_input("Number of generations", int, min_val=10, max_val=500, default=cfg["optimization"]["generations"])
-    cfg["optimization"]["mutation_prob"]   = get_valid_input("Mutation probability", float, max_val=1.0, custom_validator=lambda x: x > 0.0, custom_error="Value must be > 0.0", default=cfg["optimization"]["mutation_prob"])
-    cfg["optimization"]["crossover_prob"]  = get_valid_input("Crossover probability", float, max_val=1.0, custom_validator=lambda x: x > 0.0, custom_error="Value must be > 0.0", default=cfg["optimization"]["crossover_prob"])
-    cfg["optimization"]["seed"]            = get_valid_input("Random seed", int, min_val=0, default=cfg["optimization"]["seed"])
+        cfg["traffic"]["service_rate"] = get_valid_input("Service rate (veh/sec during green)", float, min_val=0.1, max_val=5.0, default=cfg["traffic"]["service_rate"])
+        cfg["traffic"]["simulation_time"] = get_valid_input("Simulation duration (seconds)", int, min_val=60, max_val=3600, default=cfg["traffic"]["simulation_time"])
 
-    print()
-    return cfg
+        print_header("SIGNAL CONSTRAINTS")
+        mg = get_valid_input("Min green time per phase (seconds)", int, min_val=5, max_val=60, default=int(cfg["signal_constraints"]["min_green"]))
+        cfg["signal_constraints"]["min_green"] = mg
+        cfg["signal_constraints"]["max_cycle"] = get_valid_input("Max total cycle time (seconds)", int, min_val=40, max_val=300, custom_validator=lambda x: x >= 4 * mg, custom_error="max_cycle must be at least 4 \u00d7 min_green", default=int(cfg["signal_constraints"]["max_cycle"]))
+
+        print_header("ENVIRONMENT PARAMETERS")
+        cfg["environment"]["fuel_rate_idle"] = get_valid_input("Fuel rate per idle veh-sec", float, min_val=1e-6, max_val=1.0, default=cfg["environment"]["fuel_rate_idle"])
+        cfg["environment"]["emission_idle"]  = get_valid_input("Emission coeff \u2013 idle (per veh-sec)", float, min_val=1e-6, max_val=1.0, default=cfg["environment"]["emission_idle"])
+        cfg["environment"]["emission_stop"]  = get_valid_input("Emission coeff \u2013 stop event", float, min_val=1e-6, max_val=10.0, default=cfg["environment"]["emission_stop"])
+
+        print_header("OPTIMIZATION PARAMETERS")
+        cfg["optimization"]["population_size"] = get_valid_input("Population size", int, min_val=20, max_val=500, default=cfg["optimization"]["population_size"])
+        cfg["optimization"]["generations"]     = get_valid_input("Number of generations", int, min_val=10, max_val=500, default=cfg["optimization"]["generations"])
+        cfg["optimization"]["mutation_prob"]   = get_valid_input("Mutation probability", float, max_val=1.0, custom_validator=lambda x: x > 0.0, custom_error="Value must be > 0.0", default=cfg["optimization"]["mutation_prob"])
+        cfg["optimization"]["crossover_prob"]  = get_valid_input("Crossover probability", float, max_val=1.0, custom_validator=lambda x: x > 0.0, custom_error="Value must be > 0.0", default=cfg["optimization"]["crossover_prob"])
+        cfg["optimization"]["seed"]            = get_valid_input("Random seed", int, min_val=0, default=cfg["optimization"]["seed"])
+
+        print_header("RUN SUMMARY")
+        ar = cfg['traffic']['arrival_rates']
+        print_info(f"  Arrival Rates   : N={ar['north']} S={ar['south']} E={ar['east']} W={ar['west']} (veh/min)")
+        print_info(f"  Service Rate    : {cfg['traffic']['service_rate']} veh/sec")
+        print_info(f"  Simulation Time : {cfg['traffic']['simulation_time']} s")
+        print_info(f"  Min Green       : {cfg['signal_constraints']['min_green']} s")
+        print_info(f"  Max Cycle       : {cfg['signal_constraints']['max_cycle']} s")
+        print_info(f"  Population      : {cfg['optimization']['population_size']}")
+        print_info(f"  Generations     : {cfg['optimization']['generations']}")
+        print_info("-" * 40)
+
+        while True:
+            confirm = ask_user("\n  Proceed with optimization? (y/n): ").lower()
+            if confirm in ['y', 'yes', 'n', 'no']:
+                break
+        
+        if confirm in ['y', 'yes']:
+            print_info("\nStarting optimization...")
+            return cfg
+        else:
+            print_error("\nRestarting configuration...")
 
 
 # ---------------------------------------------------------------------------

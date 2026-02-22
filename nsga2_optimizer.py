@@ -314,12 +314,16 @@ class NSGA2:
         fronts, ranks = fast_non_dominated_sort(obj)
         crowd  = self._assign_crowding(obj, fronts)
 
-        for gen in range(self.n_generations):
+        from tqdm import trange
+        import sys
+        
+        pbar = trange(self.n_generations, desc="NSGA-II Evolution", leave=False, file=sys.stdout, bar_format="{l_bar}{bar:30}{r_bar}")
+
+        for gen in pbar:
             best_f1 = obj[fronts[0], 0].min()
             self.history.append(best_f1)
 
-            if (gen + 1) % 10 == 0 or gen == 0:
-                print(f"  Gen {gen+1:3d}/{self.n_generations}  best f1={best_f1:.3f}")
+            pbar.set_postfix(best_wait=f"{best_f1:.2f}s")
 
             offspring = self._make_offspring(pop, ranks, crowd)
             off_obj   = self._evaluate_population(offspring)
@@ -330,6 +334,8 @@ class NSGA2:
 
             fronts, ranks = fast_non_dominated_sort(obj)
             crowd = self._assign_crowding(obj, fronts)
+            
+        pbar.close()
 
         pareto_idx  = fronts[0]
         pareto_front = pop[pareto_idx]
@@ -406,12 +412,16 @@ def run_single_objective_ga(sim_params=None, pop_size=80, n_generations=60,
 
     print(f"Single-obj GA | pop={pop_size} | gen={n_generations} | seed={seed}")
 
-    for gen in range(n_generations):
+    from tqdm import trange
+    import sys
+    
+    pbar = trange(n_generations, desc="Single-obj GA", leave=False, file=sys.stdout, bar_format="{l_bar}{bar:30}{r_bar}")
+
+    for gen in pbar:
         best_f1 = fitnesses.min()
         history.append(best_f1)
 
-        if (gen + 1) % 10 == 0 or gen == 0:
-            print(f"  Gen {gen+1:3d}/{n_generations}  best f1={best_f1:.3f}")
+        pbar.set_postfix(best_wait=f"{best_f1:.2f}s")
 
         offspring = []
         off_fit   = []
@@ -441,6 +451,8 @@ def run_single_objective_ga(sim_params=None, pop_size=80, n_generations=60,
         order        = np.argsort(combined_fit)[:pop_size]
         pop          = combined[order]
         fitnesses    = combined_fit[order]
+        
+    pbar.close()
 
     best_idx = np.argmin(fitnesses)
     best_ind = pop[best_idx]
