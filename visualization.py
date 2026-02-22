@@ -18,6 +18,16 @@ matplotlib.use("Agg")                        # headless backend (no display need
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D      # noqa: F401 (needed for 3D projection)
 
+from ui import print_success, print_warning
+
+try:
+    import plotly.graph_objs as go
+    import plotly.express as px
+    import pandas as pd
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+
 # ---------------------------------------------------------------------------
 # Output directory
 # ---------------------------------------------------------------------------
@@ -62,9 +72,200 @@ def _apply_dark_style(ax, title, xlabel, ylabel, zlabel=None):
         ax.set_zlabel(zlabel, fontsize=9)
     ax.grid(True, color=GRID_COLOR, linewidth=0.5, linestyle="--")
 
+# ===========================================================================
+# Plotly HTML Renderers
+# ===========================================================================
+
+def plot_pareto_interactive(pareto_df, out_dir=None):
+    """
+    3-D interactive scatter plot of the Pareto front using Plotly.
+    Saves as pareto_interactive.html
+    """
+    if not PLOTLY_AVAILABLE:
+        print_warning("Plotly not available. Skipping interactive 3D plot.")
+        return None
+
+    path = os.path.join(out_dir or PLOT_DIR, "pareto_interactive.html")
+    
+    hover_template = (
+        "<b>Solution %{customdata[0]}</b><br>" +
+        "G_North: %{customdata[1]:.1f}s<br>" +
+        "G_South: %{customdata[2]:.1f}s<br>" +
+        "G_East: %{customdata[3]:.1f}s<br>" +
+        "G_West: %{customdata[4]:.1f}s<br><br>" +
+        "Wait Time: %{x:.2f} s/veh<br>" +
+        "Fuel: %{y:.2f}<br>" +
+        "Emissions: %{z:.2f}<extra></extra>"
+    )
+
+    fig = go.Figure(data=[go.Scatter3d(
+        x=pareto_df['f1_wait'],
+        y=pareto_df['f2_fuel'],
+        z=pareto_df['f3_emission'],
+        mode='markers',
+        customdata=pareto_df[['index', 'G_North', 'G_South', 'G_East', 'G_West']].values,
+        hovertemplate=hover_template,
+        marker=dict(
+            size=6,
+            color=pareto_df['f1_wait'],
+            colorscale='Viridis',
+            colorbar=dict(title="f1 (Wait Time)"),
+            opacity=0.8
+        )
+    )])
+
+    fig.update_layout(
+        title="Interactive 3D Pareto Front",
+        scene=dict(
+            xaxis_title="f1 (Wait Time)",
+            yaxis_title="f2 (Fuel)",
+            zaxis_title="f3 (Emissions)"
+        ),
+        template="plotly_dark",
+        margin=dict(l=0, r=0, b=0, t=40)
+    )
+
+    fig.write_html(path, include_plotlyjs='cdn')
+    print_success(f"Saved interactive 3D -> {path}")
+    return path
+
+
+def plot_pareto_annotated(pareto_df, out_dir=None):
+    """
+    2-D annotated scatter plot (Wait vs Fuel) using Plotly.
+    Highlights extreme points dynamically. Saves as pareto_annotated.html
+    """
+    if not PLOTLY_AVAILABLE:
+        print_warning("Plotly not available. Skipping annotated 2D plot.")
+        return None
+
+    path = os.path.join(out_dir or PLOT_DIR, "pareto_annotated.html")
+    
+    # Identify extremes
+    idx_min_wait = pareto_df['f1_wait'].idxmin()
+    idx_min_fuel = pareto_df['f2_fuel'].idxmin()
+    idx_min_emis = pareto_df['f3_emission'].idxmin()
+
+    # Assign markers
+    sizes = [10] * len(pareto_df)
+    symbols = ['circle'] * len(pareto_df)
+    texts = [''] * len(pareto_df)
+    
+    sizes[idx_min_wait] = 16
+    sizes[idx_min_fuel] = 16
+    sizes[idx_min_emis] = 16
+    
+    symbols[idx_min_wait] = 'star'
+    symbols[idx_min_fuel] = 'diamond'
+    symbols[idx_min_emis] = 'square'
+    
+    texts[idx_min_wait] = 'Min Waiting'
+    texts[idx_min_fuel] = 'Min Fuel'
+    texts[idx_min_emis] = 'Min Emission'
+
+    pareto_df_copy = pareto_df.copy()
+    pareto_df_copy['Size'] = sizes
+    pareto_df_copy['Symbol'] = symbols
+    pareto_df_copy['Annotation'] = texts
+
+    fig = px.scatter(
+        pareto_df_copy,
+        x='f1_wait', 
+        y='f2_fuel',
+        hover_data=['index', 'G_North', 'G_South', 'G_East', 'G_West', 'f3_emission'],
+        text='Annotation',
+        size='Size',
+        size_max=16,
+        symbol='Symbol',
+        color='f1_wait',
+        color_continuous_scale="Viridis",
+        title="Annotated Pareto Extremes (Wait Time vs Fuel)"
+    )
+
+    fig.update_traces(textposition='top center', textfont=dict(size=14, color='white'))
+    fig.update_layout(template="plotly_dark")
+
+    fig.write_html(path, include_plotlyjs='cdn')
+    print_success(f"Saved annotated 2D -> {path}")
+    return path
+
+
+def plot_before_after(fixed_stats, single_ga_stats, nsga_stats, out_dir=None):
+    """
+    Grouped bar chart comparing Fixed-Time, Single-Objective GA, and NSGA-II.
+    Saves as before_after.html
+    """
+    if not PLOTLY_AVAILABLE:
+        print_warning("Plotly not available. Skipping before/after chart.")
+        return None
+
+    path = os.path.join(out_dir or PLOT_DIR, "before_after.html")
+
+    methods = ['Fixed-Time', 'Single-Obj GA', 'NSGA-II (Balanced)']
+    wait_times = [fixed_stats[0], single_ga_stats[0], nsga_stats[0]]
+    fuels      = [fixed_stats[1], single_ga_stats[1], nsga_stats[1]]
+    emissions  = [fixed_stats[2], single_ga_stats[2], nsga_stats[2]]
+
+    fig = go.Figure(data=[
+        go.Bar(name='Wait (s/veh)', x=methods, y=wait_times, text=[f"{val:.1f}" for val in wait_times], textposition='auto'),
+        go.Bar(name='Fuel Index', x=methods, y=fuels, text=[f"{val:.1f}" for val in fuels], textposition='auto'),
+        go.Bar(name='Emissions', x=methods, y=emissions, text=[f"{val:.1f}" for val in emissions], textposition='auto')
+    ])
+
+    fig.update_layout(
+        barmode='group',
+        title="Before vs After: Optimization Performance Comparison",
+        xaxis_title="Optimization Method",
+        yaxis_title="Metric Value",
+        template="plotly_dark",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    fig.write_html(path, include_plotlyjs='cdn')
+    print_success(f"Saved before/after comparison -> {path}")
+    return path
+
+
+def plot_green_heatmap(pareto_df, out_dir=None):
+    """
+    Heatmap of green time distributions across all Pareto solutions.
+    Saves as green_times_heatmap.html
+    """
+    if not PLOTLY_AVAILABLE:
+        print_warning("Plotly not available. Skipping heatmap.")
+        return None
+
+    path = os.path.join(out_dir or PLOT_DIR, "green_times_heatmap.html")
+
+    # Extract green times matrix
+    g_cols = ['G_North', 'G_South', 'G_East', 'G_West']
+    z_data = pareto_df[g_cols].values
+
+    fig = px.imshow(
+        z_data,
+        labels=dict(x="Direction", y="Pareto Solution Index", color="Green Time (s)"),
+        x=['North', 'South', 'East', 'West'],
+        y=pareto_df['index'].astype(str),
+        color_continuous_scale="Viridis",
+        aspect="auto"
+    )
+
+    fig.update_traces(
+        hovertemplate="Solution %{y}<br>Direction: %{x}<br>Green Time: %{z:.1f}s<extra></extra>"
+    )
+
+    fig.update_layout(
+        title="Green Time Distribution across Pareto Solutions",
+        template="plotly_dark"
+    )
+
+    fig.write_html(path, include_plotlyjs='cdn')
+    print_success(f"Saved green times heatmap -> {path}")
+    return path
+
 
 # ===========================================================================
-# Plot 1: 2D Pareto fronts
+# Plot 1: 2D Pareto fronts (Static Fallback)
 # ===========================================================================
 
 def plot_pareto_2d(pareto_obj,

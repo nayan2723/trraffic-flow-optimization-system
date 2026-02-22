@@ -36,6 +36,11 @@ from visualization import (
     plot_pareto_2d,
     plot_pareto_3d,
     plot_convergence,
+    plot_pareto_interactive,
+    plot_pareto_annotated,
+    plot_before_after,
+    plot_green_heatmap,
+    PLOTLY_AVAILABLE
 )
 
 # ---------------------------------------------------------------------------
@@ -167,6 +172,12 @@ Examples:
     parser.add_argument("--export-json", action="store_true", help="Export Pareto solutions to JSON")
     parser.add_argument("--explain", action="store_true", help="Print an automated explanation string based on the best tradeoff")
     parser.add_argument("--sensitivity", type=str, metavar="PARAM", help="Run a sensitivity analysis on a parameter (e.g. arrival_rate)")
+    
+    # Plotly Visuals
+    parser.add_argument("--static", action="store_true", help="Generate PNGs instead of HTML")
+    parser.add_argument("--open", action="store_true", help="Automatically open HTML files in browser")
+    parser.add_argument("--visual", type=str, choices=["interactive", "static"], default="interactive", help="Default visualization mode")
+    
     return parser.parse_args()
 
 
@@ -366,10 +377,38 @@ def main():
     # ------------------------------------------------------------------
     # 9. Generate plots  (save to results_dir)
     # ------------------------------------------------------------------
-    print_info("\nGenerating plots (saved to results directory)...")
-    plot_pareto_2d(pareto_obj, so_obj, fixed_obj, out_dir=results_dir)
-    plot_pareto_3d(pareto_obj, so_obj, fixed_obj, out_dir=results_dir)
-    plot_convergence(nsga_history, so_history,     out_dir=results_dir)
+    is_static = args.static or (args.visual == "static") or not PLOTLY_AVAILABLE
+    
+    if is_static:
+        if not PLOTLY_AVAILABLE and not args.static and args.visual != "static":
+            print_warning("Plotly not found. Falling back to static PNG plots. Run `pip install plotly pandas` for interactive HTML.")
+        
+        print_info("\nGenerating static PNG plots (saved to results directory)...")
+        plot_pareto_2d(pareto_obj, so_obj, fixed_obj, out_dir=results_dir)
+        plot_pareto_3d(pareto_obj, so_obj, fixed_obj, out_dir=results_dir)
+        plot_convergence(nsga_history, so_history,     out_dir=results_dir)
+    else:
+        print_info("\nGenerating Interactive HTML outputs (saved to results directory)...")
+        import pandas as pd
+        
+        # Build DataFrame payload
+        pareto_df = pd.DataFrame(pareto_front, columns=['G_North', 'G_South', 'G_East', 'G_West'])
+        pareto_df['f1_wait'] = pareto_obj[:, 0]
+        pareto_df['f2_fuel'] = pareto_obj[:, 1]
+        pareto_df['f3_emission'] = pareto_obj[:, 2]
+        pareto_df['index'] = pareto_df.index
+        
+        paths = []
+        paths.append(plot_pareto_interactive(pareto_df, out_dir=results_dir))
+        paths.append(plot_pareto_annotated(pareto_df, out_dir=results_dir))
+        paths.append(plot_before_after(fixed_obj, so_obj, best_nsga_obj, out_dir=results_dir))
+        paths.append(plot_green_heatmap(pareto_df, out_dir=results_dir))
+        plot_convergence(nsga_history, so_history, out_dir=results_dir) # Keep PNG convergence as standard trace
+        
+        if args.open:
+            import webbrowser
+            for p in paths:
+                if p: webbrowser.open(f"file://{os.path.abspath(p)}")
 
     # ------------------------------------------------------------------
     # 10. Exports & Explain
