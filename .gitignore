@@ -3,3 +3,6 @@ __pycache__/
 *$py.class
 results/
 plots/
+node_modules/
+frontend/node_modules/
+.env

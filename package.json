@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "matplotlib": "^1.0.0",
+    "plotly": "^1.0.6"
+  }
+}
