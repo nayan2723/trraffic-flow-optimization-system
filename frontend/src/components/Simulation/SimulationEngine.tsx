@@ -62,6 +62,7 @@ function SimulationEngineInner({ density, activePhase, aiMode, isRunning, nightM
     const RW = 160;  // Total road width
     const LANE_W = RW / 4; // 4 lanes (2 each direction)
     const STOP_DIST = RW / 2 + 25;
+    const MAX_ACTORS = 180; // Hard cap — prevents O(n²) freeze at 10x density
 
     canvas.width = W;
     canvas.height = H;
@@ -333,8 +334,8 @@ function SimulationEngineInner({ density, activePhase, aiMode, isRunning, nightM
       nsSpawner += dt * speed;
       ewSpawner += dt * speed;
 
-      // Spawn NS cars
-      if (nsSpawner > spawnRate) {
+      // Spawn NS cars (only if under actor cap)
+      if (nsSpawner > spawnRate && carsRef.current.length < MAX_ACTORS) {
         nsSpawner = 0;
         const dir = (Math.random() > 0.5 ? 1 : -1) as 1 | -1;
         const lane = Math.random() > 0.5 ? 0 : 1;
@@ -355,8 +356,8 @@ function SimulationEngineInner({ density, activePhase, aiMode, isRunning, nightM
         });
       }
 
-      // Spawn EW cars
-      if (ewSpawner > spawnRate) {
+      // Spawn EW cars (only if under actor cap)
+      if (ewSpawner > spawnRate && carsRef.current.length < MAX_ACTORS) {
         ewSpawner = 0;
         const dir = (Math.random() > 0.5 ? 1 : -1) as 1 | -1;
         const lane = Math.random() > 0.5 ? 0 : 1;
@@ -393,7 +394,7 @@ function SimulationEngineInner({ density, activePhase, aiMode, isRunning, nightM
           ? (car.axis === 'y' ? car.y < CY - STOP_DIST : car.x < CX - STOP_DIST)
           : (car.axis === 'y' ? car.y > CY + STOP_DIST : car.x > CX + STOP_DIST);
 
-        // Car-following: find closest car ahead
+        // Car-following: find closest car ahead (early-exit at 38px — safe follow gap)
         let frontDist = 999;
         for (let j = 0; j < cars.length; j++) {
           if (i === j) continue;
@@ -403,12 +404,15 @@ function SimulationEngineInner({ density, activePhase, aiMode, isRunning, nightM
           const dist = car.axis === 'y'
             ? Math.abs(car.y - other.y) : Math.abs(car.x - other.x);
 
+          // Skip cars that are far away — saves inner-loop work
+          if (dist >= frontDist || dist > 80) continue;
+
           // Check if other is ahead
           const isAhead = car.dir === 1
             ? (car.axis === 'y' ? other.y > car.y : other.x > car.x)
             : (car.axis === 'y' ? other.y < car.y : other.x < car.x);
 
-          if (isAhead && dist < frontDist) frontDist = dist;
+          if (isAhead) frontDist = dist;
         }
 
         // Should stop for red/yellow?

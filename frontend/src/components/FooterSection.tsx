@@ -97,7 +97,7 @@ export default function FooterSection() {
             {[
               { val: '3', label: 'Objective Functions', sub: 'f₁ f₂ f₃' },
               { val: '4', label: 'Decision Variables', sub: 'G₁ G₂ G₃ G₄' },
-              { val: '~40%', label: 'Wait Reduction', sub: 'vs Fixed Timing' },
+              { val: '~67%', label: 'Wait Reduction', sub: 'vs Fixed Timing (f₁)' },
               { val: '60fps', label: 'Render Performance', sub: 'Canvas + RAF' },
             ].map((spec, i) => (
               <motion.div

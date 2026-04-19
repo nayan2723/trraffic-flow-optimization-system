@@ -13,6 +13,7 @@ const chartConfigs: Record<ChartMode, {
   aiLabel: string;
   gradientId: string;
   color: string;
+  yUnit: string;
 }> = {
   wait: {
     title: 'Average Wait Time',
@@ -22,6 +23,7 @@ const chartConfigs: Record<ChartMode, {
     aiLabel: 'NSGA-II Optimized (s/veh)',
     gradientId: 'waitGradient',
     color: '#00f0ff',
+    yUnit: 's/veh',
   },
   emissions: {
     title: 'Emission Index',
@@ -31,6 +33,7 @@ const chartConfigs: Record<ChartMode, {
     aiLabel: 'NSGA-II Optimized',
     gradientId: 'emissionGradient',
     color: '#39ff14',
+    yUnit: 'idx',
   },
   fuel: {
     title: 'Fuel Consumption',
@@ -40,6 +43,7 @@ const chartConfigs: Record<ChartMode, {
     aiLabel: 'NSGA-II Optimized',
     gradientId: 'fuelGradient',
     color: '#ff00ff',
+    yUnit: 'idx',
   },
 };
 
@@ -90,9 +94,10 @@ export default function AnalyticsChart({ data }: { data: SystemMetrics[] }) {
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.3 }}
           className="w-full h-[220px]"
+          style={{ minHeight: 220 }}
         >
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 5, right: 5, left: 5, bottom: 0 }}>
               <defs>
                 <linearGradient id={`${config.gradientId}AI`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={config.color} stopOpacity={0.3} />
@@ -104,8 +109,33 @@ export default function AnalyticsChart({ data }: { data: SystemMetrics[] }) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1e" vertical={false} />
-              <XAxis dataKey="time" hide />
-              <YAxis stroke="#27272a" fontSize={9} tickLine={false} axisLine={false} />
+              <XAxis
+                dataKey="time"
+                stroke="#27272a"
+                fontSize={9}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v: number) => `${v}s`}
+                interval="preserveStartEnd"
+                tick={{ fill: '#52525b', fontFamily: '"JetBrains Mono", monospace' }}
+              />
+              <YAxis
+                stroke="#27272a"
+                fontSize={9}
+                tickLine={false}
+                axisLine={false}
+                width={42}
+                tick={{ fill: '#52525b', fontFamily: '"JetBrains Mono", monospace' }}
+                label={{
+                  value: config.yUnit,
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: 14,
+                  fill: '#52525b',
+                  fontSize: 9,
+                  fontFamily: '"JetBrains Mono", monospace',
+                }}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: '#0a0a0c',

@@ -166,20 +166,29 @@ export default function AIDecisionPanel({
         <div className="metric-card">
           <div className="metric-label">Wait Δ</div>
           <div className={`text-sm font-bold font-mono mt-1 ${improvementPct.wait > 0 ? 'text-semantic-safe text-glow-safe' : 'text-zinc-400'}`}>
-            {improvementPct.wait > 0 ? '+' : ''}{improvementPct.wait.toFixed(1)}%
+            {improvementPct.wait > 0 ? `−${improvementPct.wait.toFixed(1)}%` : '—'}
           </div>
+          {improvementPct.wait > 0 && (
+            <div className="text-[9px] text-semantic-safe mt-0.5 font-mono">↓ reduction</div>
+          )}
         </div>
         <div className="metric-card">
           <div className="metric-label">Fuel Δ</div>
           <div className={`text-sm font-bold font-mono mt-1 ${improvementPct.fuel > 0 ? 'text-semantic-safe text-glow-safe' : 'text-zinc-400'}`}>
-            {improvementPct.fuel > 0 ? '+' : ''}{improvementPct.fuel.toFixed(1)}%
+            {improvementPct.fuel > 0 ? `−${improvementPct.fuel.toFixed(1)}%` : '—'}
           </div>
+          {improvementPct.fuel > 0 && (
+            <div className="text-[9px] text-semantic-safe mt-0.5 font-mono">↓ reduction</div>
+          )}
         </div>
         <div className="metric-card">
           <div className="metric-label">Emiss Δ</div>
           <div className={`text-sm font-bold font-mono mt-1 ${improvementPct.emission > 0 ? 'text-semantic-safe text-glow-safe' : 'text-zinc-400'}`}>
-            {improvementPct.emission > 0 ? '+' : ''}{improvementPct.emission.toFixed(1)}%
+            {improvementPct.emission > 0 ? `−${improvementPct.emission.toFixed(1)}%` : '—'}
           </div>
+          {improvementPct.emission > 0 && (
+            <div className="text-[9px] text-semantic-safe mt-0.5 font-mono">↓ reduction</div>
+          )}
         </div>
       </div>
     </div>

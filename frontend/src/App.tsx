@@ -5,6 +5,7 @@ import SimulationEngine from './components/Simulation/SimulationEngine';
 import ControlPanel from './components/Controls/ControlPanel';
 import AIDecisionPanel from './components/Controls/AIDecisionPanel';
 import AnalyticsChart from './components/Data/AnalyticsChart';
+import ParetoChart from './components/Data/ParetoChart';
 import MetricsBar from './components/Data/MetricsBar';
 import FooterSection from './components/FooterSection';
 import { useSimulation } from './hooks/useSimulation';
@@ -33,9 +34,10 @@ function NavBar({ isRunning, aiMode }: { isRunning: boolean; aiMode: boolean }) 
         </span>
       </div>
 
+      {/* Nav links — each anchored to distinct sections */}
       <div className="hidden md:flex items-center gap-8 text-[11px] font-mono text-zinc-500 tracking-wider uppercase">
-        <a href="#engine" className="hover:text-primary transition-colors duration-200">Simulation</a>
-        <a href="#engine" className="hover:text-primary transition-colors duration-200">Analytics</a>
+        <a href="#engine"    className="hover:text-primary transition-colors duration-200">Simulation</a>
+        <a href="#analytics" className="hover:text-primary transition-colors duration-200">Pareto / Analytics</a>
         <span className="text-zinc-700">NSGA-II</span>
       </div>
 
@@ -159,7 +161,7 @@ export default function App() {
             </div>
 
             {/* Scrolling right panels */}
-            <div className="lg:col-span-5 flex flex-col gap-5 pb-24 z-10">
+            <div className="lg:col-span-5 flex flex-col gap-5 pb-8 z-10">
               <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -196,16 +198,53 @@ export default function App() {
                   improvementPct={sim.improvementPct}
                 />
               </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-8%' }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-              >
-                <AnalyticsChart data={sim.history} />
-              </motion.div>
             </div>
+          </div>
+        </section>
+
+        {/* ── ANALYTICS & PARETO SECTION ─────────────────────────────── */}
+        {/* Dedicated full-width section so it's always clearly visible
+            and the nav "Pareto / Analytics" link scrolls here correctly. */}
+        <section id="analytics" className="relative max-w-7xl mx-auto px-6 w-full py-16">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-10%' }}
+            transition={{ duration: 0.6 }}
+            className="mb-10"
+          >
+            <h2 className="section-label">Multi-Objective Analysis</h2>
+            <h3 className="text-2xl md:text-[2rem] font-extrabold tracking-tight mt-1">
+              Pareto Front &amp; <span className="gradient-text">Metrics</span>
+            </h3>
+            <p className="text-zinc-500 mt-2 text-sm max-w-xl leading-relaxed">
+              NSGA-II discovers the full Pareto front — no weighted sum, no bias.
+              Each scatter point is a non-dominated signal plan trade-off between f₁, f₂, and f₃.
+            </p>
+          </motion.div>
+
+          {/* 2-column: Pareto chart (wider) + Analytics chart */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: '-5%' }}
+              transition={{ duration: 0.6, delay: 0.05 }}
+            >
+              <ParetoChart
+                paretoFront={sim.paretoFront}
+                kneeSolution={sim.kneeSolution}
+              />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: '-5%' }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              <AnalyticsChart data={sim.history} />
+            </motion.div>
           </div>
         </section>
 
